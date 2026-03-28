@@ -2627,7 +2627,7 @@ document.getElementById('auth-box-container').style.display = 'none';
 firestore.collection('database').doc('ascai_main').get().then((doc) => {
     if (doc.exists && doc.data() && doc.data().students) {
         db = doc.data();
-        alert("V2 CLOUD CONNECTED!");
+        console.log("V2 CLOUD CONNECTED!");
     } else {
         db = JSON.parse(JSON.stringify(DEFDB));
         saveDB(); 
