@@ -2542,6 +2542,9 @@ textarea.inp{resize:vertical;}
 
 <div id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics-compat.js"></script>
 
 <script>
 // ===============================================================
@@ -2603,29 +2606,70 @@ const DEFDB = {
   deptHub:[]
 };
 
-if (localStorage.getItem('nexus_edu_db') && !localStorage.getItem('ascai_db')) { localStorage.setItem('ascai_db', localStorage.getItem('nexus_edu_db')); }
+// --- FIREBASE CLOUD SETUP ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB3xx2vH9RxYLdwE-S1VWrYOzUjDsjHSc4",
+  authDomain: "ascai-system.firebaseapp.com",
+  projectId: "ascai-system",
+  storageBucket: "ascai-system.firebasestorage.app",
+  messagingSenderId: "643691445215",
+  appId: "1:643691445215:web:886f708f7582086c95626a",
+  measurementId: "G-WNSELV2G0N"
+};
 
-let db = JSON.parse(localStorage.getItem('ascai_db')) || JSON.parse(JSON.stringify(DEFDB));
-if(!db.deptHub) db.deptHub = [];
+firebase.initializeApp(firebaseConfig);
+const firestore = firebase.firestore();
 
-// ONE-TIME CLEANUP (Permanently deletes buggy names and buggy subjects)
-Object.values(db.students).forEach(st => {
-  if(st.name) { st.name = st.name.replace(/^"|"$/g, '').replace(/,/g, ' ').trim(); }
-  if(st.attendance) {
-    const badKeys = ['Student Name', 'Name', 'Student', 'USN', 'slno', '', 'PERCENTAGE ATTENDANCE', 'PERCENTAGE', 'TOTAL'];
-    badKeys.forEach(k => delete st.attendance[k]);
-    Object.keys(st.attendance).forEach(k => {
-       if(k.toUpperCase().includes('PERCENT') || k.toUpperCase().includes('ATTENDANCE')) { delete st.attendance[k]; }
+let db = null;
+
+document.getElementById('auth-box-container').style.display = 'none';
+
+firestore.collection('database').doc('ascai_main').get().then((doc) => {
+    if (doc.exists && doc.data() && doc.data().students) {
+        db = doc.data();
+        alert("V2 CLOUD CONNECTED!");
+    } else {
+        db = JSON.parse(JSON.stringify(DEFDB));
+        saveDB(); 
+        console.log("Initialized new cloud database with default data.");
+    }
+    
+    Object.values(db.students).forEach(st => {
+      if(st.name) { st.name = st.name.replace(/^"|"$/g, '').replace(/,/g, ' ').trim(); }
+      if(st.attendance) {
+        const badKeys = ['Student Name', 'Name', 'Student', 'USN', 'slno', '', 'PERCENTAGE ATTENDANCE', 'PERCENTAGE', 'TOTAL'];
+        badKeys.forEach(k => delete st.attendance[k]);
+        Object.keys(st.attendance).forEach(k => {
+           if(k.toUpperCase().includes('PERCENT') || k.toUpperCase().includes('ATTENDANCE')) { delete st.attendance[k]; }
+        });
+      }
     });
-  }
+
+    document.getElementById('auth-box-container').style.display = 'block';
+
+}).catch((error) => {
+    console.error("Error fetching cloud data:", error);
+    db = JSON.parse(JSON.stringify(DEFDB));
+    document.getElementById('auth-box-container').style.display = 'block';
 });
+
+function saveDB() {
+    firestore.collection('database').doc('ascai_main').set(db)
+        .then(() => console.log("Data successfully synced to cloud!"))
+        .catch((error) => console.error("Error syncing to cloud: ", error));
+}
 
 let currentUser=null, currentRole=null, currentUserId=null;
 let chartInstance=null;
 let currentAttSubject=null;
 let adminSelectedFacId=null;
 
-function saveDB(){localStorage.setItem('ascai_db',JSON.stringify(db));}
+function saveDB() {
+    // Push the updated 'db' object to Firestore
+    firestore.collection('database').doc('ascai_main').set(db)
+        .then(() => console.log("Data successfully synced to cloud!"))
+        .catch((error) => console.error("Error syncing to cloud: ", error));
+}
 function genId(prefix){return prefix+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);}
 function today(){return new Date().toISOString().slice(0,10);}
 function pct(present,total){return total>0?Math.round((present/total)*100):0;}
